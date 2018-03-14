@@ -32,12 +32,11 @@ package net.itransformers.idiscover.v2.core.listeners.node.openstackDiscoverer;
 
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.telemetry.MeterService;
+import org.openstack4j.model.common.Identifier;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.ext.Hypervisor;
-import org.openstack4j.model.identity.Tenant;
-import org.openstack4j.model.identity.User;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.model.network.Port;
@@ -45,7 +44,7 @@ import org.openstack4j.model.network.Router;
 import org.openstack4j.model.network.Subnet;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.telemetry.Meter;
-import org.openstack4j.model.telemetry.Sample;
+import org.openstack4j.model.telemetry.MeterSample;
 import org.openstack4j.model.telemetry.Statistics;
 import org.openstack4j.openstack.OSFactory;
 
@@ -55,8 +54,6 @@ import java.util.Map;
 
 public class openstack4jDiscoverer {
     private final OSClient os;
-    private List<? extends User> users;
-    private  List<? extends Tenant> tenants;
     private List<? extends Flavor> flavors;
     private List<? extends Server> servers;
     private List<? extends Network> networks;
@@ -70,29 +67,13 @@ public class openstack4jDiscoverer {
 
 
     public openstack4jDiscoverer(String endpoint, String userName, String password, String tenant){
-                os = OSFactory.builder()
+                os = OSFactory.builderV3()
                 .endpoint(endpoint)
-                .credentials(userName,password)
-                .tenantName(tenant)
+                .credentials(userName, password,Identifier.byName("Default"))
+                .scopeToProject(Identifier.byId(tenant))
                 .authenticate();
     }
 
-    public List<? extends User> getUsers() {
-        return users;
-    }
-
-    public void setUsers() {
-
-        this.users = os.identity().users().list();
-    }
-
-    public List<? extends Tenant> getTenants() {
-        return tenants;
-    }
-
-    public void setTenants() {
-        this.tenants = os.identity().tenants().list();
-    }
 
     public List<? extends Flavor> getFlavors() {
         return flavors;
@@ -166,7 +147,7 @@ public class openstack4jDiscoverer {
     public void setMeters() {
         this.meters = os.telemetry().meters();
     }
-    public List<? extends Sample> getSamples(String sampleType) {
+    public List<? extends MeterSample> getSamples(String sampleType) {
         return os.telemetry().meters().samples(sampleType);
     }
     public List<? extends Statistics> getStats(String sampleType,int period) {
@@ -174,7 +155,7 @@ public class openstack4jDiscoverer {
     }
 
     public static void main(String[] args) {
-         openstack4jDiscoverer  oD = new openstack4jDiscoverer("http://192.168.31.149:5000/v2.0","admin","openstack","admin");
+         openstack4jDiscoverer  oD = new openstack4jDiscoverer("http://193.19.175.200:5000/v3","admin","XXXXX","YYYYY");
 
         System.out.println("----------------Hypervisors-----------------\n");
         oD.setHypervisors();
@@ -309,7 +290,7 @@ public class openstack4jDiscoverer {
             System.out.println("Meter Type: "+meter.getType());
             System.out.println("Meter Unit: "+meter.getUnit());
             System.out.println("Meter ResourceId: "+meter.getResourceId());
-            List<? extends Sample> samples1 = oD.getMeters().samples(meter.getName());
+            List<? extends MeterSample> samples1 = oD.getMeters().samples(meter.getName());
             String tabs="\t";
             try {
                 Thread.sleep(3);
@@ -318,22 +299,7 @@ public class openstack4jDiscoverer {
             }
             System.out.println("\t----------------Telemetry Samples----------------\n");
 
-            for (Sample sample : samples1) {
-                System.out.println("Counter name: " + sample.getCounterName() +"Counter type: "+sample.getCounterType());
-                System.out.println("Counter unit: " + sample.getCounterUnit());
-                System.out.println("Counter Volume: " + sample.getCounterVolume());
-                System.out.println("Counter Timestamp: "+ sample.getTimestamp());
 
-                Map<String, Object> metadata = sample.getMetadata();
-                tabs = "\t\t";
-                System.out.println(tabs+"----------------CPU Telemetry Metadata----------------\n");
-
-
-
-                for (String s : metadata.keySet()) {
-                    System.out.println(s+": "+metadata.get(s));
-                }
-            }
             System.out.println(tabs+"----------------Telemetry Stats----------------\n");
 
             int period = 320;
